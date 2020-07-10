@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -46,7 +45,6 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Print: " + strings.Join(args, " "))
 		uploadToS3Impl(cmd, args)
 	},
 }
@@ -77,15 +75,19 @@ func uploadToS3Impl(cmd *cobra.Command, args []string) {
 		Region: aws.String(awsCfg.awsRegion)},
 	)
 
+	// Input for S3 Bucket creation
 	bucketInput := &s3.CreateBucketInput{
 		Bucket: aws.String(bucketName),
 	}
 
+	// Input for search of S3 Bucket
 	headBucketInput := &s3.HeadBucketInput{
 		Bucket: aws.String(bucketName),
 	}
 
 	fExists := false
+
+	//fmt.Printf("Session type: %T\n", sess)
 
 	// Create S3 service client
 	svc := s3.New(sess)
@@ -154,6 +156,7 @@ func uploadToS3Impl(cmd *cobra.Command, args []string) {
 		fmt.Printf("failed to open file %q, %v", fileName, err)
 	}
 
+	fmt.Printf("Uploading file to //TISC//Uploads//%v", filepath.Base(fileName))
 	// Upload the file to S3.
 	uploadResult, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucketName),
@@ -163,7 +166,7 @@ func uploadToS3Impl(cmd *cobra.Command, args []string) {
 	if err != nil {
 		fmt.Printf("failed to upload file, %v", err)
 	}
-	fmt.Printf("file uploaded to, %v\n", uploadResult)
+	fmt.Printf("File uploaded to, %v\n", uploadResult)
 }
 
 func exitErrorf(msg string, args ...interface{}) {
