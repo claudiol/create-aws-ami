@@ -17,28 +17,34 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
 	"os"
+
+	"github.com/spf13/cobra"
 
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
+
+type awsConfig struct {
+	awsKey    string
+	awsSecret string
+	awsRegion string
+}
+
+var awsCfg awsConfig
 
 var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "create-aws-ami",
-	Short: "A brief description of your application",
-	Long: `A longer description that spans multiple lines and likely contains
-examples and usage of using your application. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "Utility to create AMI in AWS",
+	Long:  `Utility to create AMI on AWS from an image`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
-	//	Run: func(cmd *cobra.Command, args []string) { },
+	//Run: func(cmd *cobra.Command, args []string) {
+	//	fmt.Println("Cobra create-aws-ami!")
+	//},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -61,7 +67,7 @@ func init() {
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -88,4 +94,10 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
+
+	// Add config values to structure instance awsCfg
+	awsCfg.awsKey = viper.GetString("aws_access_key_id")
+	awsCfg.awsSecret = viper.GetString("aws_secret_access_key")
+	awsCfg.awsRegion = viper.GetString("aws_default_region")
+
 }
