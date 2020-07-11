@@ -107,9 +107,12 @@ func importImageImpl(cmd *cobra.Command, args []string) bool {
 
 	// Create the ImportSnapshotInput object
 	importSnapshotInput := &ec2.ImportSnapshotInput{
-		ClientToken: aws.String("tisc-rhcos-4.4.3-x86_64-snapshot"),
+		//ClientToken: aws.String("tisc-rhcos-4.4.3-x86_64-snapshot"),
 		Description: aws.String("Red Hat provided RHCOS image"),
 	}
+
+	// Add the UserBucket
+	//imageSnapContainer.SetUserBucket(userBucket)
 
 	// Add the ImageSnapshotDiskContainer to the list in ImportImageInput
 	importSnapshotInput.SetDiskContainer(imageSnapContainer)
@@ -121,7 +124,7 @@ func importImageImpl(cmd *cobra.Command, args []string) bool {
 		fmt.Println(err.Error())
 		return false
 	}
-	fmt.Printf("Import Task id\n: %v", *result.ImportTaskId)
+	fmt.Printf("Import Task id: %v\n", *result.ImportTaskId)
 	fmt.Println(result)
 
 	//var snapshotIds []*string // Slice of Snapshot Ids
@@ -149,6 +152,7 @@ func importImageImpl(cmd *cobra.Command, args []string) bool {
 	var snapshotID string
 	var bar string
 
+	fmt.Print("Progress [")
 	for i := 0; i < 1000; {
 		taskOutput, err := svc.DescribeImportSnapshotTasks(snapshotTasksInput)
 		if err != nil {
@@ -157,14 +161,10 @@ func importImageImpl(cmd *cobra.Command, args []string) bool {
 		bar = "="
 		if *taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Status != "completed" {
 			fmt.Printf("%v=%v%v", bar, *taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Progress, "%")
-			// fmt.Printf("Description: %v \t Complete Percentage: %v\t Status: %v \n",
-			// 	taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Description,
-			// 	taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Progress,
-			// 	taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Status)
 			time.Sleep(10 * time.Second)
 		} else {
 			snapshotID = *taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.SnapshotId
-			fmt.Println("==100%")
+			fmt.Println("==]100%")
 			fmt.Println(*(taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.SnapshotId))
 			i = 1000
 		}
