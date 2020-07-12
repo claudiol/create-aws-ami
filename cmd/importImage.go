@@ -17,6 +17,7 @@ package cmd
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -127,44 +128,31 @@ func importImageImpl(cmd *cobra.Command, args []string) bool {
 	fmt.Printf("Import Task id: %v\n", *result.ImportTaskId)
 	fmt.Println(result)
 
-	//var snapshotIds []*string // Slice of Snapshot Ids
-	//snapshotIds = append(snapshotIds, result.SnapshotTaskDetail.SnapshotId)
-
-	//fmt.Println(snapshotIds)
-	//describeSnapshotInput := &ec2.DescribeSnapshotsInput{}
-
-	//describeSnapshotInput.SetSnapshotIds(snapshotIds)
-
-	// err = svc.WaitUntilSnapshotCompleted(describeSnapshotInput)
-
-	// if err != nil {
-	// 	fmt.Println(err.Error())
-	// 	return false
-	// }
-	// fmt.Println("creation complete!")
-
 	// Let's call DescribeImportSnapshotTasks
 	var taskIds []*string
 	taskIds = append(taskIds, result.ImportTaskId)
 	snapshotTasksInput := &ec2.DescribeImportSnapshotTasksInput{}
 	snapshotTasksInput.SetImportTaskIds(taskIds)
 
+	// Wait until we get the snapshot id and the task is complete
 	var snapshotID string
-	var bar string
 
-	fmt.Print("Progress [")
+	// Create the Progress bar ...
+	bar := &Progbar{total: 100}
+
+	// for is Go's while
 	for i := 0; i < 1000; {
 		taskOutput, err := svc.DescribeImportSnapshotTasks(snapshotTasksInput)
 		if err != nil {
 			fmt.Println(err.Error())
 		}
-		bar = "="
 		if *taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Status != "completed" {
-			fmt.Printf("%v=%v%v", bar, *taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Progress, "%")
-			time.Sleep(10 * time.Second)
+			perc, _ := strconv.Atoi(*(taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Progress))
+			bar.PrintProg(perc)
+			time.Sleep(2 * time.Second)
 		} else {
 			snapshotID = *taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.SnapshotId
-			fmt.Println("==]100%")
+			bar.PrintComplete()
 			fmt.Println(*(taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.SnapshotId))
 			i = 1000
 		}
