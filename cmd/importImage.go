@@ -28,7 +28,8 @@ import (
 
 var imageName string
 var diskContainerName string
-var url string
+var s3url string
+var s3bucket string
 
 // importImageCmd represents the importImage command
 var importImageCmd = &cobra.Command{
@@ -71,11 +72,10 @@ func init() {
 	// ]
 	//  7 - Now run the import command:
 	// aws ec2 import-image --description "RHEL 7.2 Image" --disk-containers file://import-rhel.json
-	importImageCmd.Flags().StringVarP(&diskContainerName, "", "d", "", "JSON file with Disk container description for AWS image")
-	importImageCmd.MarkFlagRequired("d") // Mark as required flag
 
-	importImageCmd.Flags().StringVarP(&url, "url", "u", "", "AWS image URL")
-	importImageCmd.MarkFlagRequired("u") // Mark as required flag
+	importImageCmd.Flags().StringVarP(&s3bucket, "s3bucket", "", "", "AWS S3 Bucket Name")
+	importImageCmd.Flags().StringVarP(&s3url, "s3url", "", "", "AWS S3 RHCOS image URL")
+	//importImageCmd.MarkFlagRequired("url") // Mark as required flag
 
 }
 
@@ -86,7 +86,7 @@ func importImageImpl(cmd *cobra.Command, args []string) bool {
 	// TODO: This will need to be variabilized
 	userBucket := &ec2.UserBucket{
 		S3Bucket: aws.String("claudiol-bucket"),
-		S3Key:    aws.String("//TISC/Uploads//rhcos-4.4.3-x86_64-aws.x86_64.vmdk"),
+		S3Key:    aws.String("/TISC/Uploads/rhcos-4.4.3-x86_64-aws.x86_64.vmdk"),
 	}
 
 	imageSnapContainer := &ec2.SnapshotDiskContainer{
@@ -94,7 +94,7 @@ func importImageImpl(cmd *cobra.Command, args []string) bool {
 		Format:      aws.String("VMDK"),
 	}
 
-	imageSnapContainer.SetUrl("https://claudiol-bucket.s3-us-gov-west-1.amazonaws.com/TISC/Uploads/rhcos-4.4.3-x86_64-aws.x86_64.vmdk")
+	imageSnapContainer.SetUrl(s3url) // This is the URL passed in from the command line flag -u <URL>
 
 	var buckets []*ec2.UserBucket
 	buckets = append(buckets, userBucket)
