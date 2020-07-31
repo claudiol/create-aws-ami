@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"flag"
+//	"flag"
 	"fmt"
 	"log"
 	"time"
@@ -55,10 +55,10 @@ func check(err error) {
 	}
 }
 
-func init() {
-	flag.Parse()
-	src = flag.Args()[0]
-}
+//func init() {
+	//flag.Parse()
+	//src = flag.Args()[0]
+//}
 
 // func main() {
 // 	fmt.Printf("Downloading %s\n", src)
