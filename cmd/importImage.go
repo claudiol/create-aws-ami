@@ -28,8 +28,11 @@ import (
 
 var imageName string
 var diskContainerName string
-var s3url string
+var s3src string
 var s3bucket string
+var amiName string
+var rhcosSrc string
+var format string
 
 // importImageCmd represents the importImage command
 var importImageCmd = &cobra.Command{
@@ -38,7 +41,6 @@ var importImageCmd = &cobra.Command{
 	Long:  "Import single or multi-volume disk images or EBS snapshots into an Amazon Machine (AMI)",
 	Run: func(cmd *cobra.Command, args []string) {
 		importImageImpl(cmd, args)
-		//fmt.Println("importImage called")
 	},
 }
 
@@ -57,26 +59,17 @@ func init() {
 	// importImageCmd.Flags().StringVarP(&imageName, "image", "i", "", "Specify the disk image to convert to AMI")
 	// importImageCmd.MarkFlagRequired("image") // Mark as required flag
 
-	// Flag to pass in the disk-container json file
-	//- Create a json file with your bucket name and the name of the image:
 
-	// [
-	//   {
-	// 	  "Description": "STIG RHEL 7.2 Image",
-	// 	  "Format": "vhd",
-	// 	  "UserBucket": {
-	// 		   "S3Bucket": "claudiol-bucket",
-	// 		   "S3Key": "rhel-7.2.vhd"
-	// 	   }
-	//   }
-	// ]
-	//  7 - Now run the import command:
-	// aws ec2 import-image --description "RHEL 7.2 Image" --disk-containers file://import-rhel.json
-
-	importImageCmd.Flags().StringVarP(&s3bucket, "s3bucket", "", "", "AWS S3 Bucket Name")
-	importImageCmd.Flags().StringVarP(&s3url, "s3url", "", "", "AWS S3 RHCOS image URL")
-	//importImageCmd.MarkFlagRequired("url") // Mark as required flag
-
+	importImageCmd.Flags().StringVarP(&s3bucket, "s3bucket", "", "", "AWS S3 Bucket Name e.g. claudiol-bucket")
+	importImageCmd.MarkFlagRequired("s3bucket") // Mark as required flag
+	importImageCmd.Flags().StringVarP(&s3src, "s3src", "", "", "AWS S3 RHCOS image source e.g. /TISC/Uploads")
+	importImageCmd.MarkFlagRequired("s3src") // Mark as required flag	
+	importImageCmd.Flags().StringVarP(&rhcosSrc, "rhcosSrc", "", "", "RHCOS image name e.g. rhcos-4.5.2-x86_64-aws.x86_64.vmdk")
+	importImageCmd.MarkFlagRequired("rhcosSrc") // Mark as required flag
+	importImageCmd.Flags().StringVarP(&format, "format", "", "", "Image format e.g. vmdk")
+	importImageCmd.MarkFlagRequired("format") // Mark as required flag
+	importImageCmd.Flags().StringVarP(&amiName, "amiName", "", "", "AWS AMI Name e.g. tisc-ami")
+	importImageCmd.MarkFlagRequired("amiName") // Mark as required flag
 }
 
 func importImageImpl(cmd *cobra.Command, args []string) bool {
@@ -84,17 +77,21 @@ func importImageImpl(cmd *cobra.Command, args []string) bool {
 	// Structure for UserBucket to be passed in
 	// All the TISC uploads will go into the /TISC/Uploads key
 	// TODO: This will need to be variabilized
+
+	source := s3src + "/" + rhcosSrc
+	fmt.Println(source)
 	userBucket := &ec2.UserBucket{
-		S3Bucket: aws.String("claudiol-bucket"),
-		S3Key:    aws.String("/TISC/Uploads/rhcos-4.4.3-x86_64-aws.x86_64.vmdk"),
+		S3Bucket: aws.String(s3bucket),
+		S3Key:    aws.String(source),
 	}
 
 	imageSnapContainer := &ec2.SnapshotDiskContainer{
 		Description: aws.String("Red Hat Provided RHCOS Image"),
-		Format:      aws.String("VMDK"),
+		Format:      aws.String(format),
 	}
 
-	imageSnapContainer.SetUrl(s3url) // This is the URL passed in from the command line flag -u <URL>
+	//fmt.Println(s3src)
+	//imageSnapContainer.SetUrl(s3src) // This is the URL passed in from the command line flag -u <URL>
 
 	var buckets []*ec2.UserBucket
 	buckets = append(buckets, userBucket)
@@ -108,18 +105,17 @@ func importImageImpl(cmd *cobra.Command, args []string) bool {
 
 	// Create the ImportSnapshotInput object
 	importSnapshotInput := &ec2.ImportSnapshotInput{
-		//ClientToken: aws.String("tisc-rhcos-4.4.3-x86_64-snapshot"),
 		Description: aws.String("Red Hat provided RHCOS image"),
 	}
 
 	// Add the UserBucket
-	//imageSnapContainer.SetUserBucket(userBucket)
+	imageSnapContainer.SetUserBucket(userBucket)
 
 	// Add the ImageSnapshotDiskContainer to the list in ImportImageInput
 	importSnapshotInput.SetDiskContainer(imageSnapContainer)
 
 	fmt.Printf("Calling import Snapshot ...")
-	result, err := svc.ImportSnapshot(importSnapshotInput) //Image(importImageInput)
+	result, err := svc.ImportSnapshot(importSnapshotInput) 
 
 	if err != nil {
 		fmt.Println(err.Error())
@@ -147,9 +143,14 @@ func importImageImpl(cmd *cobra.Command, args []string) bool {
 			fmt.Println(err.Error())
 		}
 		if *taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Status != "completed" {
-			perc, _ := strconv.Atoi(*(taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Progress))
-			bar.PrintProg(perc)
-			time.Sleep(2 * time.Second)
+			if taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Progress != nil {
+			  perc, _ := strconv.Atoi(*taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.Progress)
+			  bar.PrintProg(perc)
+			  time.Sleep(2 * time.Second)
+                        } else {
+  			  fmt.Println(taskOutput.ImportSnapshotTasks)
+                          i=1000
+                        }
 		} else {
 			snapshotID = *taskOutput.ImportSnapshotTasks[0].SnapshotTaskDetail.SnapshotId
 			bar.PrintComplete()
@@ -178,7 +179,7 @@ func importImageImpl(cmd *cobra.Command, args []string) bool {
 
 	// Create a RegisterImageInput object
 	registerImageInput := &ec2.RegisterImageInput{
-		Name:               aws.String("tisc-rhcos-4.4.3-x86_64-ami"),
+		Name:               aws.String(amiName),
 		Architecture:       aws.String("x86_64"),
 		Description:        aws.String("Red Hat Provided RHCOS Image"),
 		RootDeviceName:     aws.String("/dev/sda1"),

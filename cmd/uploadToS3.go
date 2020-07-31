@@ -59,7 +59,6 @@ func init() {
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
 	// uploadToS3Cmd.PersistentFlags().String("foo", "", "A help for foo")
-
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	uploadToS3Cmd.Flags().StringVarP(&bucketName, "bucket", "b", "", "Specify the S3 bucket name to upload to")
@@ -89,11 +88,10 @@ func uploadToS3Impl(cmd *cobra.Command, args []string) {
 
 	// Create S3 service client
 	svc := s3.New(sess)
+        fmt.Printf("Checking to see if S3 bucket [%v] exists ...", bucketName) 
+        result, err := svc.HeadBucket(headBucketInput) 
 
-	fmt.Printf("Checking to see if S3 bucket [%v] exists ...", bucketName)
-	result, err := svc.HeadBucket(headBucketInput)
-	if err != nil {
-		if aerr, ok := err.(awserr.Error); ok {
+        if err != nil { if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			case s3.ErrCodeNoSuchBucket:
 				fmt.Println(s3.ErrCodeNoSuchBucket, aerr.Error())
@@ -148,6 +146,7 @@ func uploadToS3Impl(cmd *cobra.Command, args []string) {
 
 	// Create an uploader with the session and default options
 	uploader := s3manager.NewUploader(sess)
+        uploader.Concurrency = 5
 
 	f, err := os.Open(fileName)
 	if err != nil {
