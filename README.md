@@ -3,11 +3,14 @@
 Utility to create AMI on AWS from an image
 
 ````
+Utility to create AMI on AWS from an image
+
 Usage:
   create-aws-ami [command]
 
 Available Commands:
   help        Help about any command
+  importImage Cobra application to import disk image to AMI.
   uploadToS3  Uploads a file to a specified S3 bucket.
 
 Flags:
